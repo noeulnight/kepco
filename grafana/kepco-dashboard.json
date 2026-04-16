@@ -44,7 +44,7 @@
       },
       "options": {
         "colorMode": "value",
-        "graphMode": "area",
+        "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
         "percentChangeColorMode": "standard",
@@ -56,16 +56,17 @@
           "values": false
         },
         "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
+        "textMode": "value",
+        "wideLayout": false
       },
       "targets": [
         {
           "editorMode": "code",
           "expr": "kepco_usage_realtime_kwh",
           "legendFormat": "Realtime Usage",
-          "range": true,
-          "refId": "A"
+          "range": false,
+          "refId": "A",
+          "instant": true
         }
       ]
     },
@@ -105,7 +106,7 @@
       },
       "options": {
         "colorMode": "value",
-        "graphMode": "area",
+        "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
         "percentChangeColorMode": "standard",
@@ -117,16 +118,17 @@
           "values": false
         },
         "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
+        "textMode": "value",
+        "wideLayout": false
       },
       "targets": [
         {
           "editorMode": "code",
           "expr": "kepco_usage_predicted_kwh",
           "legendFormat": "Predicted Usage",
-          "range": true,
-          "refId": "A"
+          "range": false,
+          "refId": "A",
+          "instant": true
         }
       ]
     },
@@ -166,7 +168,7 @@
       },
       "options": {
         "colorMode": "value",
-        "graphMode": "area",
+        "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
         "percentChangeColorMode": "standard",
@@ -178,16 +180,17 @@
           "values": false
         },
         "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
+        "textMode": "value",
+        "wideLayout": false
       },
       "targets": [
         {
           "editorMode": "code",
           "expr": "kepco_billing_realtime_total_charge",
           "legendFormat": "Realtime Total Charge",
-          "range": true,
-          "refId": "A"
+          "range": false,
+          "refId": "A",
+          "instant": true
         }
       ]
     },
@@ -227,7 +230,7 @@
       },
       "options": {
         "colorMode": "value",
-        "graphMode": "area",
+        "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
         "percentChangeColorMode": "standard",
@@ -239,16 +242,17 @@
           "values": false
         },
         "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
+        "textMode": "value",
+        "wideLayout": false
       },
       "targets": [
         {
           "editorMode": "code",
           "expr": "kepco_predicted_total_charge",
           "legendFormat": "Predicted Total Charge",
-          "range": true,
-          "refId": "A"
+          "range": false,
+          "refId": "A",
+          "instant": true
         }
       ]
     },
@@ -733,8 +737,9 @@
           "editorMode": "code",
           "expr": "kepco_usage_realtime_kwh",
           "legendFormat": "Realtime Usage",
-          "range": true,
-          "refId": "A"
+          "range": false,
+          "refId": "A",
+          "instant": true
         }
       ],
       "pluginVersion": "11.0.0"
@@ -783,7 +788,7 @@
       },
       "options": {
         "colorMode": "value",
-        "graphMode": "area",
+        "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
         "percentChangeColorMode": "standard",
@@ -795,16 +800,17 @@
           "values": false
         },
         "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
+        "textMode": "value",
+        "wideLayout": false
       },
       "targets": [
         {
           "editorMode": "code",
           "expr": "kepco_chart_usage_total_kwh{period=\"time\",series=\"current\"}",
           "legendFormat": "Current total",
-          "range": true,
-          "refId": "A"
+          "range": false,
+          "refId": "A",
+          "instant": true
         }
       ],
       "pluginVersion": "11.0.0"
@@ -952,6 +958,6 @@
   "timezone": "browser",
   "title": "KEPCO Overview",
   "uid": "kepco-overview",
-  "version": 4,
+  "version": 5,
   "weekStart": ""
 }

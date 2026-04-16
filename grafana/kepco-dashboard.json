@@ -18,7 +18,7 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 6,
+        "w": 4,
         "x": 0,
         "y": 0
       },
@@ -79,8 +79,8 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 6,
-        "x": 6,
+        "w": 4,
+        "x": 4,
         "y": 0
       },
       "fieldConfig": {
@@ -140,8 +140,8 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 6,
-        "x": 12,
+        "w": 4,
+        "x": 8,
         "y": 0
       },
       "fieldConfig": {
@@ -201,8 +201,8 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 6,
-        "x": 18,
+        "w": 4,
+        "x": 12,
         "y": 0
       },
       "fieldConfig": {
@@ -264,7 +264,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 4
+        "y": 12
       },
       "fieldConfig": {
         "defaults": {
@@ -362,7 +362,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 4
+        "y": 12
       },
       "fieldConfig": {
         "defaults": {
@@ -460,7 +460,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 12
+        "y": 20
       },
       "fieldConfig": {
         "defaults": {
@@ -572,7 +572,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 12
+        "y": 20
       },
       "fieldConfig": {
         "defaults": {
@@ -681,10 +681,10 @@
         "uid": "${datasource}"
       },
       "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 0,
-        "y": 20
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 0
       },
       "fieldConfig": {
         "defaults": {
@@ -748,10 +748,10 @@
         "uid": "${datasource}"
       },
       "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 8,
-        "y": 20
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 0
       },
       "fieldConfig": {
         "defaults": {
@@ -821,7 +821,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 28
+        "y": 4
       },
       "fieldConfig": {
         "defaults": {
@@ -952,6 +952,6 @@
   "timezone": "browser",
   "title": "KEPCO Overview",
   "uid": "kepco-overview",
-  "version": 2,
+  "version": 4,
   "weekStart": ""
 }

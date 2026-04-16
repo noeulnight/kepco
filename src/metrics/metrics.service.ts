@@ -6,12 +6,19 @@ import {
 } from '@nestjs/common';
 import { Gauge, Registry, collectDefaultMetrics } from 'prom-client';
 import { KepcoService } from '../kepco/kepco.service';
+import type { KepcoSmartUsageChartResponse } from '../kepco/type/smart-usage-chart-response.type';
 import { KepcoSmartUsageMenuType } from '../kepco/type/smart-usage-menu-type.enum';
 import type { KepcoSmartUsageFeeResponse } from '../kepco/type/smart-usage-fee-response.type';
 
 @Injectable()
 export class MetricsService implements OnModuleInit, OnModuleDestroy {
   private static readonly REFRESH_INTERVAL_MS = 60_000;
+  private static readonly CHART_PERIODS = [
+    KepcoSmartUsageMenuType.Time,
+    KepcoSmartUsageMenuType.Day,
+    KepcoSmartUsageMenuType.Month,
+    KepcoSmartUsageMenuType.Year,
+  ] as const;
   private readonly logger = new Logger(MetricsService.name);
   private readonly registry = new Registry();
   private readonly gauges = {
@@ -110,6 +117,24 @@ export class MetricsService implements OnModuleInit, OnModuleDestroy {
       help: 'Current KEPCO predicted total charge amount',
       registers: [this.registry],
     }),
+    chartUsageKwh: new Gauge({
+      name: 'kepco_chart_usage_kwh',
+      help: 'KEPCO chart usage in kWh by period and comparison series',
+      labelNames: ['period', 'series', 'measured_at', 'measured_date'],
+      registers: [this.registry],
+    }),
+    chartUsageTotalKwh: new Gauge({
+      name: 'kepco_chart_usage_total_kwh',
+      help: 'Summed KEPCO chart usage in kWh by period and comparison series',
+      labelNames: ['period', 'series'],
+      registers: [this.registry],
+    }),
+    chartCharge: new Gauge({
+      name: 'kepco_chart_charge',
+      help: 'KEPCO chart charge by period and comparison series',
+      labelNames: ['period', 'series', 'measured_at', 'measured_date'],
+      registers: [this.registry],
+    }),
   };
   private refreshTimer: NodeJS.Timeout | null = null;
 
@@ -135,16 +160,10 @@ export class MetricsService implements OnModuleInit, OnModuleDestroy {
   }
 
   async refreshMetrics(): Promise<void> {
-    try {
-      const usage = await this.kepcoService.getSmartUsageFee({
-        period: KepcoSmartUsageMenuType.Time,
-        TOU: false,
-      });
-
-      this.updateGauges(usage);
-    } catch (error) {
-      this.logger.error('Failed to refresh KEPCO metrics', error);
-    }
+    await Promise.all([
+      this.refreshOverviewMetrics(),
+      this.refreshChartMetrics(),
+    ]);
   }
 
   async getMetrics(): Promise<string> {
@@ -153,6 +172,33 @@ export class MetricsService implements OnModuleInit, OnModuleDestroy {
 
   getContentType(): string {
     return this.registry.contentType;
+  }
+
+  private async refreshOverviewMetrics(): Promise<void> {
+    try {
+      const usage = await this.kepcoService.getSmartUsageFee({
+        period: KepcoSmartUsageMenuType.Time,
+        TOU: false,
+      });
+
+      this.updateGauges(usage);
+    } catch (error) {
+      this.logger.error('Failed to refresh KEPCO overview metrics', error);
+    }
+  }
+
+  private async refreshChartMetrics(): Promise<void> {
+    try {
+      const charts = await Promise.all(
+        MetricsService.CHART_PERIODS.map((period) =>
+          this.kepcoService.getSmartUsageChart({ period }),
+        ),
+      );
+
+      this.updateChartGauges(charts);
+    } catch (error) {
+      this.logger.error('Failed to refresh KEPCO chart metrics', error);
+    }
   }
 
   private updateGauges(usage: KepcoSmartUsageFeeResponse): void {
@@ -183,5 +229,67 @@ export class MetricsService implements OnModuleInit, OnModuleDestroy {
     this.gauges.predictedVatCharge.set(usage.predicted.vatCharge);
     this.gauges.predictedFundCharge.set(usage.predicted.fundCharge);
     this.gauges.predictedTotalCharge.set(usage.predicted.totalCharge);
+  }
+
+  private updateChartGauges(charts: KepcoSmartUsageChartResponse[]): void {
+    this.gauges.chartUsageKwh.reset();
+    this.gauges.chartUsageTotalKwh.reset();
+    this.gauges.chartCharge.reset();
+
+    for (const chart of charts) {
+      let currentUsageTotal = 0;
+      let previousDayUsageTotal = 0;
+      let lastYearUsageTotal = 0;
+
+      for (const item of chart.items) {
+        const labels = {
+          period: chart.period,
+          measured_at: item.measuredAt,
+          measured_date: item.measuredDate ?? '',
+        };
+
+        this.gauges.chartUsageKwh.set(
+          { ...labels, series: 'current' },
+          item.usageKwh,
+        );
+        currentUsageTotal += item.usageKwh;
+        this.gauges.chartUsageKwh.set(
+          { ...labels, series: 'previous_day' },
+          item.previousDayUsageKwh,
+        );
+        previousDayUsageTotal += item.previousDayUsageKwh;
+        this.gauges.chartUsageKwh.set(
+          { ...labels, series: 'last_year' },
+          item.lastYearUsageKwh,
+        );
+        lastYearUsageTotal += item.lastYearUsageKwh;
+
+        this.gauges.chartCharge.set(
+          { ...labels, series: 'current' },
+          item.charge,
+        );
+        this.gauges.chartCharge.set(
+          { ...labels, series: 'previous_day' },
+          item.previousDayCharge,
+        );
+        this.gauges.chartCharge.set(
+          { ...labels, series: 'last_year' },
+          item.lastYearCharge,
+        );
+      }
+
+      this.gauges.chartUsageTotalKwh.set(
+        { period: chart.period, series: 'current' },
+        currentUsageTotal,
+      );
+      this.gauges.chartUsageTotalKwh.set(
+        { period: chart.period, series: 'previous_day' },
+        previousDayUsageTotal,
+      );
+      this.gauges.chartUsageTotalKwh.set(
+        { period: chart.period, series: 'last_year' },
+        lastYearUsageTotal,
+      );
+    }
   }
 }

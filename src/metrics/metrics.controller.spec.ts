@@ -1,3 +1,4 @@
+import { KepcoSmartUsageMenuType } from '../kepco/type/smart-usage-menu-type.enum';
 import { MetricsController } from './metrics.controller';
 import { MetricsService } from './metrics.service';
 
@@ -70,6 +71,37 @@ describe('MetricsController', () => {
           totalCharge: 7200,
         },
       }),
+      getSmartUsageChart: jest
+        .fn()
+        .mockImplementation((input: { period: KepcoSmartUsageMenuType }) =>
+          Promise.resolve({
+            period: input.period,
+            items: [
+              {
+                label: '10',
+                measuredAt: '10',
+                measuredDate: '2026-04-16',
+                usageKwh: 1.2,
+                charge: 120,
+                previousDayUsageKwh: 1.1,
+                previousDayCharge: 110,
+                lastYearUsageKwh: 0.9,
+                lastYearCharge: 90,
+              },
+              {
+                label: '11',
+                measuredAt: '11',
+                measuredDate: '2026-04-16',
+                usageKwh: 2.3,
+                charge: 230,
+                previousDayUsageKwh: 2.1,
+                previousDayCharge: 210,
+                lastYearUsageKwh: 1.5,
+                lastYearCharge: 150,
+              },
+            ],
+          }),
+        ),
     };
     const service = new MetricsService(kepcoService as never);
     const controller = new MetricsController(service);
@@ -81,5 +113,11 @@ describe('MetricsController', () => {
       'text/plain; version=0.0.4; charset=utf-8',
     );
     expect(metrics).toContain('kepco_usage_realtime_kwh 50');
+    expect(metrics).toContain(
+      'kepco_chart_usage_kwh{period="time",measured_at="10",measured_date="2026-04-16",series="current"} 1.2',
+    );
+    expect(metrics).toContain(
+      'kepco_chart_usage_total_kwh{period="time",series="current"} 3.5',
+    );
   });
 });

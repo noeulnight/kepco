@@ -21,6 +21,12 @@ import type { KepcoSmartUsageFeeRequest } from './type/smart-usage-fee-request.t
 import type { KepcoSmartUsageFeeResponse } from './type/smart-usage-fee-response.type';
 import { KepcoYesNo } from './type/yes-no.enum';
 
+class KepcoAuthenticationResponseError extends Error {
+  constructor() {
+    super('KEPCO returned an unauthenticated response body');
+  }
+}
+
 @Injectable()
 export class KepcoService {
   private session: KepcoAuthSession | null = null;
@@ -83,17 +89,46 @@ export class KepcoService {
     const session = await this.ensureAuthenticated();
 
     try {
-      return await this.sendAuthenticatedRequest(config, session.cookieHeader);
+      const response = await this.sendAuthenticatedRequest<T>(
+        config,
+        session.cookieHeader,
+      );
+      const responseData = this.asRecord(response.data);
+
+      if (
+        responseData['access-denied'] === true ||
+        this.trimValue(responseData.cause) === 'AUTHORIZATION_FAILURE' ||
+        this.trimValue(responseData.message) === 'Please login first.'
+      ) {
+        throw new KepcoAuthenticationResponseError();
+      }
+
+      return response;
     } catch (error) {
-      if (!this.isUnauthorized(error)) {
+      if (
+        !this.isUnauthorized(error) &&
+        !(error instanceof KepcoAuthenticationResponseError)
+      ) {
         throw error;
       }
 
       const refreshedSession = await this.ensureAuthenticated(true);
-      return this.sendAuthenticatedRequest(
+      const response = await this.sendAuthenticatedRequest<T>(
         config,
         refreshedSession.cookieHeader,
       );
+
+      const responseData = this.asRecord(response.data);
+
+      if (
+        responseData['access-denied'] === true ||
+        this.trimValue(responseData.cause) === 'AUTHORIZATION_FAILURE' ||
+        this.trimValue(responseData.message) === 'Please login first.'
+      ) {
+        throw new KepcoAuthenticationResponseError();
+      }
+
+      return response;
     }
   }
 
@@ -321,70 +356,72 @@ export class KepcoService {
   private mapSmartUsageFeeResponse(
     data: KepcoSmartUsageFeeRawResponse,
   ): KepcoSmartUsageFeeResponse {
+    const safeData = this.asRecord(data);
+
     return {
       customer: {
-        electricityRateName: this.trimValue(data.CNTR_KND_NM),
-        electricityRateCode: data.ELEC_CAR_CD,
-        specialCaseName: this.trimValue(data.ELEC_CAR_NM),
-        specialCaseCode: data.ELEC_CAR_CD,
-        householdCount: data.HSHCNT,
+        electricityRateName: this.trimValue(safeData.CNTR_KND_NM),
+        electricityRateCode: this.toStringValue(safeData.ELEC_CAR_CD),
+        specialCaseName: this.trimValue(safeData.ELEC_CAR_NM),
+        specialCaseCode: this.toStringValue(safeData.ELEC_CAR_CD),
+        householdCount: this.toNumber(safeData.HSHCNT),
       },
       period: {
-        billingPeriodStartDate: this.trimValue(data.START_DT),
-        selectedDate: this.trimValue(data.SELECT_DT),
-        billingPeriodEndDate: this.trimValue(data.END_DT),
-        elapsedBillingDays: data.DT,
-        billingCycleDays: data.ET,
+        billingPeriodStartDate: this.trimValue(safeData.START_DT),
+        selectedDate: this.trimValue(safeData.SELECT_DT),
+        billingPeriodEndDate: this.trimValue(safeData.END_DT),
+        elapsedBillingDays: this.toNumber(safeData.DT),
+        billingCycleDays: this.toNumber(safeData.ET),
       },
       usage: {
-        realtimeKwh: this.toNumber(data.F_AP_QT),
-        predictedKwh: this.toNumber(data.PREDICT_TOT),
-        currentTier: this.toNumber(data.KWH_TYPE),
-        predictedTier: this.toNumber(data.PREDICT_BILL_LEVEL),
-        unitPrice: this.toNumber(data.UNIT_PRICE),
+        realtimeKwh: this.toNumber(safeData.F_AP_QT),
+        predictedKwh: this.toNumber(safeData.PREDICT_TOT),
+        currentTier: this.toNumber(safeData.KWH_TYPE),
+        predictedTier: this.toNumber(safeData.PREDICT_BILL_LEVEL),
+        unitPrice: this.toNumber(safeData.UNIT_PRICE),
         rateTiers: {
-          tier1: data.USEKWH_UCOST1,
-          tier2: data.USEKWH_UCOST2,
-          tier3: data.USEKWH_UCOST3,
-          tier4: data.USEKWH_UCOST4,
-          tier5: data.USEKWH_UCOST5,
-          tier6: data.USEKWH_UCOST6,
+          tier1: this.toNumber(safeData.USEKWH_UCOST1),
+          tier2: this.toNumber(safeData.USEKWH_UCOST2),
+          tier3: this.toNumber(safeData.USEKWH_UCOST3),
+          tier4: this.toNumber(safeData.USEKWH_UCOST4),
+          tier5: this.toNumber(safeData.USEKWH_UCOST5),
+          tier6: this.toNumber(safeData.USEKWH_UCOST6),
         },
       },
       billing: {
         demand: {
-          kw: data.JOJ_KW,
-          appliedAt: this.trimValue(data.JOJ_KW_TIME),
+          kw: this.toNumber(safeData.JOJ_KW),
+          appliedAt: this.trimValue(safeData.JOJ_KW_TIME),
         },
         baseCharge: {
-          unitPrice: this.toNumber(data.BASE_BILL_UCOST),
-          amount: this.toNumber(data.BASE_BILL),
+          unitPrice: this.toNumber(safeData.BASE_BILL_UCOST),
+          amount: this.toNumber(safeData.BASE_BILL),
         },
-        energyCharge: this.toNumber(data.KWH_BILL),
-        realtimeEnergyCharge: this.toNumber(data.REAL_KWH_BILL),
-        subtotalCharge: this.toNumber(data.TOT_BILL),
-        vatCharge: this.toNumber(data.VAT_BILL),
-        fundCharge: this.toNumber(data.FUND_BILL),
-        realtimeTotalCharge: this.toNumber(data.TOTAL_CHARGE),
+        energyCharge: this.toNumber(safeData.KWH_BILL),
+        realtimeEnergyCharge: this.toNumber(safeData.REAL_KWH_BILL),
+        subtotalCharge: this.toNumber(safeData.TOT_BILL),
+        vatCharge: this.toNumber(safeData.VAT_BILL),
+        fundCharge: this.toNumber(safeData.FUND_BILL),
+        realtimeTotalCharge: this.toNumber(safeData.TOTAL_CHARGE),
       },
       tou: {
         demand: {
-          kw: data.TOU_JOJ_KW,
-          appliedAt: this.trimValue(data.TOU_JOJ_KW_TIME),
+          kw: this.toNumber(safeData.TOU_JOJ_KW),
+          appliedAt: this.trimValue(safeData.TOU_JOJ_KW_TIME),
         },
         baseCharge: {
-          unitPrice: this.toNumber(data.TOU_BASE_BILL_UCOST),
-          amount: this.toNumber(data.TOU_BASE_BILL),
+          unitPrice: this.toNumber(safeData.TOU_BASE_BILL_UCOST),
+          amount: this.toNumber(safeData.TOU_BASE_BILL),
         },
       },
       predicted: {
-        charge: this.toNumber(data.PREDICT_BILL),
-        subtotalCharge: this.toNumber(data.PREDICT_TOT_BILL),
-        realtimeSubtotalCharge: this.toNumber(data.REAL_PREDICT_TOT_BILL),
-        baseCharge: this.toNumber(data.PREDICT_BASE_BILL),
-        vatCharge: this.toNumber(data.PREDICT_VAT_BILL),
-        fundCharge: this.toNumber(data.PREDICT_FUND_BILL),
-        totalCharge: this.toNumber(data.PREDICT_TOTAL_CHARGE),
+        charge: this.toNumber(safeData.PREDICT_BILL),
+        subtotalCharge: this.toNumber(safeData.PREDICT_TOT_BILL),
+        realtimeSubtotalCharge: this.toNumber(safeData.REAL_PREDICT_TOT_BILL),
+        baseCharge: this.toNumber(safeData.PREDICT_BASE_BILL),
+        vatCharge: this.toNumber(safeData.PREDICT_VAT_BILL),
+        fundCharge: this.toNumber(safeData.PREDICT_FUND_BILL),
+        totalCharge: this.toNumber(safeData.PREDICT_TOTAL_CHARGE),
       },
     };
   }
@@ -393,18 +430,20 @@ export class KepcoService {
     period: KepcoSmartUsageChartRequest['period'],
     data: KepcoSmartUsageChartRawItem[],
   ): KepcoSmartUsageChartResponse {
+    const items = Array.isArray(data) ? data : [];
+
     return {
       period,
-      items: data.map((item) => ({
-        label: this.formatChartLabel(period, item.MR_HHMI),
-        measuredAt: item.MR_HHMI,
-        measuredDate: item.MR_YMD,
-        usageKwh: item.F_AP_QT,
-        charge: item.KWH_BILL,
-        previousDayUsageKwh: item.LDAY_F_AP_QT,
-        previousDayCharge: item.LDAY_KWH_BILL,
-        lastYearUsageKwh: item.LYEAR_F_AP_QT,
-        lastYearCharge: item.LYEAR_KWH_BILL,
+      items: items.map((item) => ({
+        label: this.formatChartLabel(period, this.toStringValue(item?.MR_HHMI)),
+        measuredAt: this.toStringValue(item?.MR_HHMI),
+        measuredDate: this.toOptionalStringValue(item?.MR_YMD),
+        usageKwh: this.toNumber(item?.F_AP_QT),
+        charge: this.toNumber(item?.KWH_BILL),
+        previousDayUsageKwh: this.toNumber(item?.LDAY_F_AP_QT),
+        previousDayCharge: this.toNumber(item?.LDAY_KWH_BILL),
+        lastYearUsageKwh: this.toNumber(item?.LYEAR_F_AP_QT),
+        lastYearCharge: this.toNumber(item?.LYEAR_KWH_BILL),
       })),
     };
   }
@@ -426,12 +465,47 @@ export class KepcoService {
     return hour.startsWith('0') ? hour.slice(1) : hour;
   }
 
-  private trimValue(value: string): string {
-    return value.trim();
+  private asRecord(value: unknown): Record<string, unknown> {
+    return value !== null && typeof value === 'object'
+      ? (value as Record<string, unknown>)
+      : {};
   }
 
-  private toNumber(value: string): number {
-    return Number(this.trimValue(value).replaceAll(',', ''));
+  private trimValue(value: unknown): string {
+    return this.toStringValue(value).trim();
+  }
+
+  private toStringValue(value: unknown): string {
+    if (typeof value === 'string') {
+      return value;
+    }
+
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? String(value) : '';
+    }
+
+    return '';
+  }
+
+  private toOptionalStringValue(value: unknown): string | undefined {
+    const normalized = this.trimValue(value);
+
+    return normalized === '' ? undefined : normalized;
+  }
+
+  private toNumber(value: unknown): number {
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : 0;
+    }
+
+    const normalized = this.trimValue(value).replaceAll(',', '');
+
+    if (normalized === '') {
+      return 0;
+    }
+
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
   }
 
   private encryptCredential(value: string, modulusHex: string): string {

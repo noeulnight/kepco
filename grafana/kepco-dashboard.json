@@ -62,7 +62,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "kepco_usage_realtime_kwh",
+          "expr": "max(kepco_usage_realtime_kwh)",
           "legendFormat": "Realtime Usage",
           "range": false,
           "refId": "A",
@@ -124,7 +124,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "kepco_usage_predicted_kwh",
+          "expr": "max(kepco_usage_predicted_kwh)",
           "legendFormat": "Predicted Usage",
           "range": false,
           "refId": "A",
@@ -186,7 +186,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "kepco_billing_realtime_total_charge",
+          "expr": "max(kepco_billing_realtime_total_charge)",
           "legendFormat": "Realtime Total Charge",
           "range": false,
           "refId": "A",
@@ -248,7 +248,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "kepco_predicted_total_charge",
+          "expr": "max(kepco_predicted_total_charge)",
           "legendFormat": "Predicted Total Charge",
           "range": false,
           "refId": "A",
@@ -339,14 +339,14 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "kepco_usage_realtime_kwh",
+          "expr": "max(kepco_usage_realtime_kwh)",
           "legendFormat": "Realtime",
           "range": true,
           "refId": "A"
         },
         {
           "editorMode": "code",
-          "expr": "kepco_usage_predicted_kwh",
+          "expr": "max(kepco_usage_predicted_kwh)",
           "legendFormat": "Predicted",
           "range": true,
           "refId": "B"
@@ -437,14 +437,14 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "kepco_billing_realtime_total_charge",
+          "expr": "max(kepco_billing_realtime_total_charge)",
           "legendFormat": "Realtime total",
           "range": true,
           "refId": "A"
         },
         {
           "editorMode": "code",
-          "expr": "kepco_predicted_total_charge",
+          "expr": "max(kepco_predicted_total_charge)",
           "legendFormat": "Predicted total",
           "range": true,
           "refId": "B"
@@ -535,28 +535,28 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "kepco_billing_base_charge_amount",
+          "expr": "max(kepco_billing_base_charge_amount)",
           "legendFormat": "Base",
           "range": true,
           "refId": "A"
         },
         {
           "editorMode": "code",
-          "expr": "kepco_billing_energy_charge",
+          "expr": "max(kepco_billing_energy_charge)",
           "legendFormat": "Energy",
           "range": true,
           "refId": "B"
         },
         {
           "editorMode": "code",
-          "expr": "kepco_billing_vat_charge",
+          "expr": "max(kepco_billing_vat_charge)",
           "legendFormat": "VAT",
           "range": true,
           "refId": "C"
         },
         {
           "editorMode": "code",
-          "expr": "kepco_billing_fund_charge",
+          "expr": "max(kepco_billing_fund_charge)",
           "legendFormat": "Fund",
           "range": true,
           "refId": "D"
@@ -647,28 +647,28 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "kepco_predicted_base_charge",
+          "expr": "max(kepco_predicted_base_charge)",
           "legendFormat": "Base",
           "range": true,
           "refId": "A"
         },
         {
           "editorMode": "code",
-          "expr": "kepco_predicted_charge",
+          "expr": "max(kepco_predicted_charge)",
           "legendFormat": "Energy",
           "range": true,
           "refId": "B"
         },
         {
           "editorMode": "code",
-          "expr": "kepco_predicted_vat_charge",
+          "expr": "max(kepco_predicted_vat_charge)",
           "legendFormat": "VAT",
           "range": true,
           "refId": "C"
         },
         {
           "editorMode": "code",
-          "expr": "kepco_predicted_fund_charge",
+          "expr": "max(kepco_predicted_fund_charge)",
           "legendFormat": "Fund",
           "range": true,
           "refId": "D"
@@ -735,7 +735,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "kepco_usage_realtime_kwh",
+          "expr": "max(kepco_usage_realtime_kwh)",
           "legendFormat": "Realtime Usage",
           "range": false,
           "refId": "A",
@@ -806,7 +806,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "kepco_chart_usage_total_kwh{period=\"time\",series=\"current\"}",
+          "expr": "max(kepco_chart_usage_total_kwh{period=\"time\",series=\"current\"})",
           "legendFormat": "Current total",
           "range": false,
           "refId": "A",
@@ -898,21 +898,21 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "kepco_chart_usage_total_kwh{period=\"time\",series=\"current\"}",
+          "expr": "max by (period, series) (kepco_chart_usage_total_kwh{period=\"time\",series=\"current\"})",
           "legendFormat": "Current",
           "range": true,
           "refId": "A"
         },
         {
           "editorMode": "code",
-          "expr": "kepco_chart_usage_total_kwh{period=\"time\",series=\"previous_day\"}",
+          "expr": "max by (period, series) (kepco_chart_usage_total_kwh{period=\"time\",series=\"previous_day\"})",
           "legendFormat": "Previous day",
           "range": true,
           "refId": "B"
         },
         {
           "editorMode": "code",
-          "expr": "kepco_chart_usage_total_kwh{period=\"time\",series=\"last_year\"}",
+          "expr": "max by (period, series) (kepco_chart_usage_total_kwh{period=\"time\",series=\"last_year\"})",
           "legendFormat": "Last year",
           "range": true,
           "refId": "C"

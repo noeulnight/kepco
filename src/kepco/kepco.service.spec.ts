@@ -1,7 +1,9 @@
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
+import { AxiosError } from 'axios';
 import type { AxiosResponse } from 'axios';
 import { KepcoService } from './kepco.service';
+import type { KepcoAuthSession } from './type/auth-session.type';
 import type { KepcoSmartUsageChartRawItem } from './type/smart-usage-chart-raw-item.type';
 import type { KepcoSmartUsageChartResponse } from './type/smart-usage-chart-response.type';
 import { KepcoSmartUsageMenuType } from './type/smart-usage-menu-type.enum';
@@ -21,6 +23,12 @@ describe('KepcoService', () => {
         headers: {},
       },
     }) as AxiosResponse<T>;
+  const createAxiosError = (message: string, code?: string): AxiosError =>
+    Object.assign(new AxiosError(message, code), {
+      config: {
+        headers: {},
+      },
+    });
   const mapSmartUsageFeeResponse = (
     service: KepcoService,
     data: KepcoSmartUsageFeeRawResponse,
@@ -43,6 +51,16 @@ describe('KepcoService', () => {
 
     return mapper.call(service, period, data) as KepcoSmartUsageChartResponse;
   };
+  const ensureAuthenticated = (
+    service: KepcoService,
+    forceRefresh?: boolean,
+  ): Promise<KepcoAuthSession> =>
+    (
+      Reflect.get(service as never, 'ensureAuthenticated') as (
+        this: KepcoService,
+        forceRefresh?: boolean,
+      ) => Promise<KepcoAuthSession>
+    ).call(service, forceRefresh) as Promise<KepcoAuthSession>;
 
   it('normalizes missing smart usage fee fields instead of throwing', () => {
     const service = createService();
@@ -152,8 +170,16 @@ describe('KepcoService', () => {
     const service = createService();
     const ensureAuthenticated = jest
       .spyOn(service as never, 'ensureAuthenticated')
-      .mockResolvedValueOnce({ cookieHeader: 'stale-session' })
-      .mockResolvedValueOnce({ cookieHeader: 'fresh-session' });
+      .mockResolvedValueOnce({
+        cookieHeader: 'stale-session',
+        createdAt: 0,
+        expiresAt: 1,
+      })
+      .mockResolvedValueOnce({
+        cookieHeader: 'fresh-session',
+        createdAt: 2,
+        expiresAt: 3,
+      });
     const sendAuthenticatedRequest = jest
       .spyOn(service as never, 'sendAuthenticatedRequest')
       .mockResolvedValueOnce(
@@ -163,6 +189,102 @@ describe('KepcoService', () => {
           cause: 'AUTHORIZATION_FAILURE',
         }),
       )
+      .mockResolvedValueOnce(
+        createAxiosResponse({
+          ok: true,
+        }),
+      );
+
+    const response = await service.requestWithAuth({
+      method: 'POST',
+      url: '/rm/getRM0201.do',
+    });
+
+    expect(response.data).toEqual({
+      ok: true,
+    });
+    expect(ensureAuthenticated).toHaveBeenNthCalledWith(1);
+    expect(ensureAuthenticated).toHaveBeenNthCalledWith(2, true);
+    expect(sendAuthenticatedRequest).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ url: '/rm/getRM0201.do' }),
+      'stale-session',
+    );
+    expect(sendAuthenticatedRequest).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ url: '/rm/getRM0201.do' }),
+      'fresh-session',
+    );
+  });
+
+  it('reuses an unexpired session', async () => {
+    const service = createService();
+    const login = jest.spyOn(service as never, 'login').mockResolvedValue({
+      cookieHeader: 'cached-session',
+      createdAt: 1_000,
+      expiresAt: 1_000 + 12 * 60 * 60 * 1000,
+    });
+    const dateNow = jest.spyOn(Date, 'now').mockReturnValue(1_000);
+
+    Reflect.set(service as never, 'session', {
+      cookieHeader: 'cached-session',
+      createdAt: 1_000,
+      expiresAt: 1_000 + 12 * 60 * 60 * 1000,
+    });
+
+    const session = await ensureAuthenticated(service);
+
+    expect(session).toEqual({
+      cookieHeader: 'cached-session',
+      createdAt: 1_000,
+      expiresAt: 1_000 + 12 * 60 * 60 * 1000,
+    });
+    expect(login).not.toHaveBeenCalled();
+    dateNow.mockRestore();
+  });
+
+  it('refreshes the session before ttl expiry', async () => {
+    const service = createService();
+    const refreshedSession = {
+      cookieHeader: 'fresh-session',
+      createdAt: 200,
+      expiresAt: 300,
+    };
+    const login = jest
+      .spyOn(service as never, 'login')
+      .mockResolvedValue(refreshedSession);
+    const dateNow = jest.spyOn(Date, 'now').mockReturnValue(100);
+
+    Reflect.set(service as never, 'session', {
+      cookieHeader: 'stale-session',
+      createdAt: 0,
+      expiresAt: 100 + 10 * 60 * 1000,
+    });
+
+    const session = await ensureAuthenticated(service);
+
+    expect(session).toEqual(refreshedSession);
+    expect(login).toHaveBeenCalledTimes(1);
+    dateNow.mockRestore();
+  });
+
+  it('re-authenticates when KEPCO closes the socket with a stale session', async () => {
+    const service = createService();
+    const ensureAuthenticated = jest
+      .spyOn(service as never, 'ensureAuthenticated')
+      .mockResolvedValueOnce({
+        cookieHeader: 'stale-session',
+        createdAt: 0,
+        expiresAt: 1,
+      })
+      .mockResolvedValueOnce({
+        cookieHeader: 'fresh-session',
+        createdAt: 2,
+        expiresAt: 3,
+      });
+    const sendAuthenticatedRequest = jest
+      .spyOn(service as never, 'sendAuthenticatedRequest')
+      .mockRejectedValueOnce(createAxiosError('socket hang up', 'ECONNRESET'))
       .mockResolvedValueOnce(
         createAxiosResponse({
           ok: true,

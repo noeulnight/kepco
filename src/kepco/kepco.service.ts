@@ -27,6 +27,9 @@ class KepcoAuthenticationResponseError extends Error {
   }
 }
 
+const KEPCO_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+const KEPCO_SESSION_REFRESH_BUFFER_MS = 10 * 60 * 1000;
+
 @Injectable()
 export class KepcoService {
   private session: KepcoAuthSession | null = null;
@@ -105,10 +108,7 @@ export class KepcoService {
 
       return response;
     } catch (error) {
-      if (
-        !this.isUnauthorized(error) &&
-        !(error instanceof KepcoAuthenticationResponseError)
-      ) {
+      if (!this.shouldRefreshSession(error)) {
         throw error;
       }
 
@@ -135,7 +135,7 @@ export class KepcoService {
   private async ensureAuthenticated(
     forceRefresh = false,
   ): Promise<KepcoAuthSession> {
-    if (!forceRefresh && this.session) {
+    if (!forceRefresh && this.session && !this.isSessionExpired(this.session)) {
       return this.session;
     }
 
@@ -157,12 +157,15 @@ export class KepcoService {
     const kepcoId = this.configService.getOrThrow<string>('KEPCO_ID');
     const kepcoPw = this.configService.getOrThrow<string>('KEPCO_PW');
     const { cookieHeader, response } = await this.submitLogin(kepcoId, kepcoPw);
+    const createdAt = Date.now();
 
     return {
       cookieHeader: this.mergeCookieHeaders(
         cookieHeader,
         response.headers['set-cookie'],
       ),
+      createdAt,
+      expiresAt: createdAt + KEPCO_SESSION_TTL_MS,
     };
   }
 
@@ -180,6 +183,25 @@ export class KepcoService {
 
   private isUnauthorized(error: unknown): boolean {
     return isAxiosError(error) && error.response?.status === 401;
+  }
+
+  private isSocketHangUp(error: unknown): boolean {
+    return (
+      isAxiosError(error) &&
+      (error.code === 'ECONNRESET' || error.message === 'socket hang up')
+    );
+  }
+
+  private shouldRefreshSession(error: unknown): boolean {
+    return (
+      this.isUnauthorized(error) ||
+      this.isSocketHangUp(error) ||
+      error instanceof KepcoAuthenticationResponseError
+    );
+  }
+
+  private isSessionExpired(session: KepcoAuthSession): boolean {
+    return Date.now() >= session.expiresAt - KEPCO_SESSION_REFRESH_BUFFER_MS;
   }
 
   private async buildLoginPayloadContext(

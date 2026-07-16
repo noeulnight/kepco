@@ -99,6 +99,7 @@ export class KepcoService {
       const responseData = this.asRecord(response.data);
 
       if (
+        typeof response.data === 'string' ||
         responseData['access-denied'] === true ||
         this.trimValue(responseData.cause) === 'AUTHORIZATION_FAILURE' ||
         this.trimValue(responseData.message) === 'Please login first.'
@@ -121,6 +122,7 @@ export class KepcoService {
       const responseData = this.asRecord(response.data);
 
       if (
+        typeof response.data === 'string' ||
         responseData['access-denied'] === true ||
         this.trimValue(responseData.cause) === 'AUTHORIZATION_FAILURE' ||
         this.trimValue(responseData.message) === 'Please login first.'
